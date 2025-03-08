@@ -79,12 +79,13 @@ def get_rooms(game_id):
 @game_bp.route('/<int:game_id>/accuse', methods=['POST'])
 def accuse(game_id):
     payload = request.get_json()
+    player_id = payload.get("player_id")
     suspect = payload.get("suspect")
     weapon = payload.get("weapon")
     room = payload.get("room")
     
-    if not suspect or not weapon or not room:
-        return jsonify({"error": "suspect, weapon, and room are required"}), 400
+    if not player_id or not suspect or not weapon or not room:
+        return jsonify({"error": "player_id, suspect, weapon, and room are required"}), 400
 
     game = games.get(game_id)
     if not game:
@@ -95,19 +96,25 @@ def accuse(game_id):
         game.solution["weapon"] == weapon and
         game.solution["room"] == room
     )
+    
     if correct:
         response = {
-            "message": "Accusation correct! You solved the mystery.",
-            "solution": game.solution
+            "message": f"Accusation correct! Player {player_id} wins!",
+            "solution": game.solution,
+            "player_id": player_id,
+            "game_id": game.game_id
         }
+        broadcast("AccusationCorrect", response)
     else:
         response = {
-            "message": "Accusation incorrect. Try again."
+            "message": f"Accusation incorrect. Player {player_id} is eliminated.",
+            "player_id": player_id,
+            "game_id": game.game_id
         }
-    # Broadcast the accusation event
-    from app.messaging import broadcast
-    broadcast("AccusationMade", response)
+        broadcast("AccusationIncorrect", response)
+    
     return jsonify(response)
+
 
 
 @game_bp.route('/<int:game_id>/turn', methods=['GET'])
