@@ -1,0 +1,187 @@
+# app/controllers/game_controller.py
+
+from flask import Blueprint, jsonify, request
+from app.models.game_manager import create_game, games  # Import the games dict
+
+game_bp = Blueprint('game', __name__, url_prefix='/game')
+
+@game_bp.route('/start', methods=['GET'])
+def start_game():
+    new_game = create_game()
+    new_game.start()  # Start the game (sets the solution)
+    return jsonify({
+        "message": "New Clue-Less game started",
+        "game_id": new_game.game_id
+    })
+
+@game_bp.route('/<int:game_id>/join', methods=['POST'])
+def join_game(game_id):
+    payload = request.get_json()
+    player_name = payload.get("player_name") if payload else None
+    if not player_name:
+        return jsonify({"error": "Player name is required"}), 400
+
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+
+    player = game.add_player(player_name)
+    return jsonify({
+        "message": f"Player {player.name} joined game {game_id}",
+        "player_id": player.player_id,
+        "game_id": game.game_id
+    })
+
+@game_bp.route('/<int:game_id>/move', methods=['POST'])
+def move_player(game_id):
+    payload = request.get_json()
+    player_id = payload.get("player_id")
+    new_room = payload.get("new_room")
+    
+    if not player_id or not new_room:
+        return jsonify({"error": "Both player_id and new_room are required"}), 400
+
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+
+    player = game.move_player(player_id, new_room)
+    if not player:
+        return jsonify({"error": "Player not found in the game"}), 404
+
+    return jsonify({
+        "message": f"Player {player.name} moved to {new_room}",
+        "player_id": player.player_id,
+        "current_room": player.current_room,
+        "game_id": game.game_id
+    })
+
+@game_bp.route('/<int:game_id>/rooms', methods=['GET'])
+def get_rooms(game_id):
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+    room_names = [room.name for room in game.rooms]
+    return jsonify({
+        "rooms": room_names,
+        "game_id": game.game_id
+    })
+
+@game_bp.route('/<int:game_id>/accuse', methods=['POST'])
+def accuse(game_id):
+    payload = request.get_json()
+    suspect = payload.get("suspect")
+    weapon = payload.get("weapon")
+    room = payload.get("room")
+    
+    if not suspect or not weapon or not room:
+        return jsonify({"error": "suspect, weapon, and room are required"}), 400
+
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+
+    correct = (
+        game.solution["suspect"] == suspect and
+        game.solution["weapon"] == weapon and
+        game.solution["room"] == room
+    )
+    if correct:
+        return jsonify({
+            "message": "Accusation correct! You solved the mystery.",
+            "solution": game.solution
+        })
+    else:
+        return jsonify({
+            "message": "Accusation incorrect. Try again."
+        })
+
+@game_bp.route('/<int:game_id>/turn', methods=['GET'])
+def get_turn(game_id):
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+    current_player = game.get_current_player()
+    if not current_player:
+        return jsonify({"error": "No players in game"}), 400
+    return jsonify({
+        "game_id": game.game_id,
+        "current_player": current_player.name,
+        "player_id": current_player.player_id
+    })
+
+@game_bp.route('/<int:game_id>/turn/advance', methods=['POST'])
+def advance_turn(game_id):
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+    new_player = game.advance_turn()
+    if not new_player:
+        return jsonify({"error": "No players in game"}), 400
+    return jsonify({
+        "game_id": game.game_id,
+        "current_player": new_player.name,
+        "player_id": new_player.player_id
+    })
+
+@game_bp.route('/<int:game_id>/suggest', methods=['POST'])
+def suggest(game_id):
+    payload = request.get_json()
+    player_id = payload.get("player_id")
+    suspect = payload.get("suspect")
+    weapon = payload.get("weapon")
+    room = payload.get("room")
+    
+    if not player_id or not suspect or not weapon or not room:
+         return jsonify({"error": "player_id, suspect, weapon, and room are required"}), 400
+    
+    game = games.get(game_id)
+    if not game:
+         return jsonify({"error": "Game not found"}), 404
+    
+    # Find the player in the game.
+    player = next((p for p in game.players if p.player_id == player_id), None)
+    if not player:
+         return jsonify({"error": "Player not found in the game"}), 404
+         
+    # Verify that the player is in the room they are suggesting.
+    if player.current_room != room:
+         return jsonify({"error": "Player must be in the suggested room to make a suggestion"}), 400
+         
+    # For now, simply acknowledge the suggestion.
+    return jsonify({
+         "message": f"Suggestion noted: {suspect} with the {weapon} in the {room}",
+         "suggestion": {"suspect": suspect, "weapon": weapon, "room": room},
+         "player_id": player_id,
+         "game_id": game_id
+    })
+
+@game_bp.route('/<int:game_id>/deal', methods=['POST'])
+def deal(game_id):
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+    try:
+        game.deal_cards()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    return jsonify({
+        "message": "Cards dealt to all players.",
+        "game_id": game.game_id
+    })
+
+@game_bp.route('/<int:game_id>/player/<int:player_id>/hand', methods=['GET'])
+def get_hand(game_id, player_id):
+    game = games.get(game_id)
+    if not game:
+        return jsonify({"error": "Game not found"}), 404
+    player = next((p for p in game.players if p.player_id == player_id), None)
+    if not player:
+        return jsonify({"error": "Player not found"}), 404
+    return jsonify({
+        "player_id": player.player_id,
+        "hand": player.hand,
+        "game_id": game.game_id
+    })
+
+
