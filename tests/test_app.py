@@ -76,15 +76,27 @@ class BasicTestCase(unittest.TestCase):
         self.assertIn("Kitchen", data.get("rooms"))
 
     def test_game_accuse(self):
+        # Start a new game
         response = self.app.get('/game/start')
         self.assertEqual(response.status_code, 200)
         start_data = json.loads(response.data)
         game_id = start_data.get("game_id")
+        
+        # Join a player
+        join_payload = {"player_name": "Test Player"}
+        response = self.app.post(f'/game/{game_id}/join', json=join_payload)
+        self.assertEqual(response.status_code, 200)
+        join_data = json.loads(response.data)
+        player_id = join_data.get("player_id")
+        
         # Retrieve the game instance from our in-memory store
         from app.models.game_manager import games
         game = games.get(game_id)
         self.assertIsNotNone(game.solution, "Game solution should be set when game starts")
+        
+        # Test wrong accusation with player_id included
         wrong_payload = {
+            "player_id": player_id,
             "suspect": "Wrong Suspect",
             "weapon": "Wrong Weapon",
             "room": "Wrong Room"
@@ -93,12 +105,18 @@ class BasicTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data_wrong = json.loads(response.data)
         self.assertIn("Accusation incorrect", data_wrong.get("message"))
-        correct_payload = game.solution
+        self.assertEqual(data_wrong.get("player_id"), player_id)
+        
+        # Test correct accusation using the game solution and including player_id
+        correct_payload = {"player_id": player_id}
+        correct_payload.update(game.solution)
         response = self.app.post(f'/game/{game_id}/accuse', json=correct_payload)
         self.assertEqual(response.status_code, 200)
         data_correct = json.loads(response.data)
         self.assertIn("Accusation correct", data_correct.get("message"))
         self.assertEqual(data_correct.get("solution"), game.solution)
+        self.assertEqual(data_correct.get("player_id"), player_id)
+
 
     def test_turn_management(self):
         # Start a new game
