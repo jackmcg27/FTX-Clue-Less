@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Clue-Less Real-Time Messaging Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    #status { margin-bottom: 10px; }
+    #messages { list-style: none; padding: 0; }
+    #messages li { padding: 5px; border-bottom: 1px solid #ddd; }
+  </style>
+</head>
+<body>
+  <h1>Clue-Less Real-Time Messaging Demo</h1>
+  <p id="status">Connecting...</p>
+  <ul id="messages"></ul>
+
+  <script>
+    // Prompt the user for a unique client ID when the page loads.
+    let clientId = prompt("Enter your unique client ID:");
+    if (!clientId) {
+      clientId = "defaultClient"; // fallback if no input is given
+    }
+    document.getElementById("status").innerText = "Connecting as " + clientId + "...";
+
+    // Establish an EventSource connection to the SSE endpoint.
+    const eventSource = new EventSource(`http://127.0.0.1:5000/game/sse/${clientId}`);
+
+    eventSource.onopen = function() {
+      document.getElementById("status").innerText = "Connected to SSE as " + clientId;
+    };
+
+    eventSource.onmessage = function(event) {
+      const messagesList = document.getElementById("messages");
+      const newItem = document.createElement("li");
+      newItem.textContent = event.data;
+      messagesList.appendChild(newItem);
+    };
+
+    eventSource.onerror = function(event) {
+      document.getElementById("status").innerText = "Error in connection.";
+      console.error("SSE error:", event);
+    };
+  </script>
+</body>
+</html>

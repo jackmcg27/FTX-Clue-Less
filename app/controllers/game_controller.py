@@ -1,8 +1,10 @@
 # app/controllers/game_controller.py
 
-from flask import Blueprint, jsonify, request
+import time
+
+from flask import Blueprint, jsonify, request, Response
 from app.models.game_manager import create_game, games 
-from app.messaging import broadcast
+from app.messaging import broadcast, subscribe, get_messages, clear_messages
 
 game_bp = Blueprint('game', __name__, url_prefix='/game')
 
@@ -210,4 +212,39 @@ def get_hand(game_id, player_id):
         "game_id": game.game_id
     })
 
+@game_bp.route('/subscribe/<string:client_id>', methods=['GET'])
+def subscribe_client(client_id):
+    """
+    Simulate a client subscribing for real-time messages.
+    Returns all queued messages for that client and clears them.
+    """
+    # Register the client if not already subscribed.
+    subscribe(client_id)
+    messages = get_messages(client_id)
+    clear_messages(client_id)
+    return jsonify({
+        "client_id": client_id,
+        "messages": messages
+    })
 
+@game_bp.route('/sse/<string:client_id>')
+def sse(client_id):
+    # Register the client for messages.
+    subscribe(client_id)
+    
+    def event_stream():
+        while True:
+            try:
+                messages = get_messages(client_id)
+                if messages:
+                    for message in messages:
+                        # Ensure proper SSE formatting: "data: <message>\n\n"
+                        yield f"data: {message}\n\n"
+                    clear_messages(client_id)
+                time.sleep(0.5)  # Adjust polling interval as needed.
+            except Exception as e:
+                # Send an error message and break the connection.
+                yield f"data: Error: {str(e)}\n\n"
+                break
+    
+    return Response(event_stream(), mimetype="text/event-stream")

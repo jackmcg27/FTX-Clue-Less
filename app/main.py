@@ -1,10 +1,13 @@
 # app/main.py
 
 from flask import Flask
+from flask_cors import CORS
 from app.controllers.example_controller import example_bp
 from app.controllers.game_controller import game_bp
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="../static")
+CORS(app)
+
 app.config.from_pyfile('config.py')  # Loads configuration from config.py
 
 # Register blueprints
