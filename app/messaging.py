@@ -1,8 +1,10 @@
 # app/messaging.py
 
+from app.socketio_instance import socketio
+
 def broadcast(event, data):
     """
-    Simulate a push-based notification to all connected clients.
-    In the final system, this would send data via WebSockets or SSE.
+    Use SocketIO to emit the event to all connected clients.
     """
-    print(f"[Real-Time Messaging] Event: {event} | Data: {data}")
+    socketio.emit(event, data)
+    print(f"[SocketIO Broadcast] Event: {event} | Data: {data}")

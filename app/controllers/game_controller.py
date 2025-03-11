@@ -1,7 +1,7 @@
 # app/controllers/game_controller.py
 
 from flask import Blueprint, jsonify, request
-from app.models.game_manager import create_game, games 
+from app.models.game_manager import create_game, games
 from app.messaging import broadcast
 
 game_bp = Blueprint('game', __name__, url_prefix='/game')
@@ -9,12 +9,11 @@ game_bp = Blueprint('game', __name__, url_prefix='/game')
 @game_bp.route('/start', methods=['GET'])
 def start_game():
     new_game = create_game()
-    new_game.start()  # Generate solution, etc.
+    new_game.start()  # Generate the solution, etc.
     response = {
         "message": "New Clue-Less game started",
         "game_id": new_game.game_id
     }
-    # Broadcast the new game state to all clients.
     broadcast("GameStarted", response)
     return jsonify(response)
 
@@ -35,7 +34,6 @@ def join_game(game_id):
         "player_id": player.player_id,
         "game_id": game.game_id
     }
-    # Broadcast updated game state.
     broadcast("PlayerJoined", response)
     return jsonify(response)
 
@@ -96,7 +94,6 @@ def accuse(game_id):
         game.solution["weapon"] == weapon and
         game.solution["room"] == room
     )
-    
     if correct:
         response = {
             "message": f"Accusation correct! Player {player_id} wins!",
@@ -112,10 +109,7 @@ def accuse(game_id):
             "game_id": game.game_id
         }
         broadcast("AccusationIncorrect", response)
-    
     return jsonify(response)
-
-
 
 @game_bp.route('/<int:game_id>/turn', methods=['GET'])
 def get_turn(game_id):
@@ -144,7 +138,6 @@ def advance_turn(game_id):
         "current_player": new_player.name,
         "player_id": new_player.player_id
     }
-    # Broadcast turn change.
     broadcast("TurnAdvanced", response)
     return jsonify(response)
 
@@ -174,7 +167,7 @@ def suggest(game_id):
          "message": f"Suggestion noted: {suspect} with the {weapon} in the {room}",
          "suggestion": {"suspect": suspect, "weapon": weapon, "room": room},
          "player_id": player_id,
-         "game_id": game_id
+         "game_id": game.game_id
     }
     broadcast("SuggestionMade", response)
     return jsonify(response)
@@ -192,7 +185,6 @@ def deal(game_id):
         "message": "Cards dealt to all players.",
         "game_id": game.game_id
     }
-    # Broadcast card dealing event.
     broadcast("CardsDealt", response)
     return jsonify(response)
 
@@ -209,5 +201,3 @@ def get_hand(game_id, player_id):
         "hand": player.hand,
         "game_id": game.game_id
     })
-
-

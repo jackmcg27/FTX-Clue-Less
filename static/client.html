@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Clue-Less WebSocket Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    #status { margin-bottom: 10px; }
+    #messages { list-style: none; padding: 0; }
+    #messages li { padding: 5px; border-bottom: 1px solid #ddd; }
+  </style>
+  <!-- Load Socket.IO client library from CDN (without integrity attribute for now) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Clue-Less WebSocket Demo</h1>
+  <p id="status">Connecting...</p>
+  <ul id="messages"></ul>
+
+  <script>
+    // Prompt for a unique client ID when the page loads.
+    let clientId = prompt("Enter your unique client ID:");
+    if (!clientId) {
+      clientId = "defaultClient";
+    }
+    document.getElementById("status").innerText = "Connecting as " + clientId + "...";
+
+    // Connect to the Socket.IO server.
+    const socket = io("http://127.0.0.1:5000");
+
+    // Log all received events for debugging.
+    socket.onAny((event, data) => {
+      console.log("Received event:", event, data);
+    });
+
+    socket.on("connect", () => {
+      document.getElementById("status").innerText = "Connected as " + clientId;
+      // Optionally, emit an event to register the client ID with the server.
+      socket.emit("register_client", { client_id: clientId });
+    });
+
+    // Listen for specific broadcast events.
+    socket.on("GameStarted", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "GameStarted: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("PlayerJoined", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "PlayerJoined: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("PlayerMoved", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "PlayerMoved: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("SuggestionMade", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "SuggestionMade: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("AccusationCorrect", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "AccusationCorrect: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("AccusationIncorrect", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "AccusationIncorrect: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("TurnAdvanced", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "TurnAdvanced: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("CardsDealt", (data) => {
+      const li = document.createElement("li");
+      li.textContent = "CardsDealt: " + JSON.stringify(data);
+      document.getElementById("messages").appendChild(li);
+    });
+
+    socket.on("disconnect", () => {
+      document.getElementById("status").innerText = "Disconnected from server.";
+    });
+  </script>
+</body>
+</html>
